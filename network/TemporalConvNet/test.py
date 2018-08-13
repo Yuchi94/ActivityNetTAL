@@ -7,10 +7,13 @@ from TemporalConvNet import TemporalConvNet
 
 #define convOp
 def convOp(TA, iters, kernel, dilation):
-    return TA.read(iters)
+    #return TA.read(iters)
+    return tf.add_n([TA.read(iters - i * dilation) for i in range(kernel)])/kernel
+
+    return tf.reduce_mean(tf.stack([TA.read(iters - i * dilation) for i in range(kernel)]))
 
 #build model
-net = TemporalConvNet([90, 160, 3], [1], [3], [1], convOp)
+net = TemporalConvNet([90, 160, 3], [1, 2], [3, 2], [5, 10], convOp)
 net.buildNetwork()
 net.initNetwork()
 
@@ -29,12 +32,15 @@ while(cap.isOpened()):
     
 cap.release()
     
-    
+print(len(frames)) 
 input = np.stack(frames)
 
-test_output = net.predict(input)[0]
+output = net.predict(input)
+test_output = output[1]
+print(output[0].shape)
+print(output[1].shape)
 for i in range(test_output.shape[0]):
-    print(test_output[i,:,:,0])
+    #print(test_output[i,:,:,0])
     cv2.imshow("output", test_output[i,:,:,:] / 255)
     cv2.waitKey(1)
 
