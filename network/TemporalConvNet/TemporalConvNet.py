@@ -34,7 +34,7 @@ class TemporalConvNet:
         def loopCond(iters, *_):
             return iters < num_time_steps
 
-        def loopBody(iters, TA, input):
+        def loopBody(iters, TA, input, update):
 
             TA[0] = tf.cond(tf.logical_and(tf.equal(tf.mod(tf.add(iters, 1), self._temporal_stride[0]), 0), 
                     tf.greater(iters, tf.multiply(self._temporal_kernel_size[0], self._temporal_dilation_factor[0]))),
@@ -42,17 +42,40 @@ class TemporalConvNet:
                 lambda: TA[0]
             )
 
+            update[0] = tf.cond(tf.logical_and(tf.equal(tf.mod(tf.add(iters, 1), self._temporal_stride[0]), 0), 
+                    tf.greater(iters, tf.multiply(self._temporal_kernel_size[0], self._temporal_dilation_factor[0]))),
+                lambda: True, 
+                lambda: False
+            ) 
+
          #   if (iters + 1) % (self._temporal_stride[0]) == 0 and iters > (self._temporal_kernel_size[0] * self._temporal_dilation_factor[0]):
          #       TA[0] = TA[0].write(iters, self._convOp(input, iters, self._temporal_kernel_size[0], self._temporal_dilation_factor[0]))
          #   else:
          #       return iters + 1, TA, input
 
             for i in range(1, self._num_layers):
-                TA[i] = tf.cond(tf.logical_and(tf.equal(tf.mod(TA[i-1].size(), self._temporal_stride[i]), 0), 
+                TA[i] = tf.cond(tf.logical_and(tf.logical_and(tf.equal(tf.mod(TA[i-1].size(), self._temporal_stride[i]), 0), 
                     tf.greater_equal(TA[i-1].size(), tf.multiply(self._temporal_kernel_size[i], self._temporal_dilation_factor[i]))),
+                    update[i-1]),
                     lambda: TA[i].write(TA[i].size(), self._convOp(TA[i-1], TA[i-1].size() - 1, self._temporal_kernel_size[i], self._temporal_dilation_factor[i])),
                     lambda: TA[i]
                 )
+
+                update[i] = tf.cond(tf.logical_and(tf.logical_and(tf.equal(tf.mod(TA[i-1].size(), self._temporal_stride[i]), 0), 
+                    tf.greater_equal(TA[i-1].size(), tf.multiply(self._temporal_kernel_size[i], self._temporal_dilation_factor[i]))),
+                    update[i-1]),
+                    lambda: True,
+                    lambda: False 
+                )
+
+                update[i - 1] = tf.cond(tf.logical_and(tf.logical_and(tf.equal(tf.mod(TA[i-1].size(), self._temporal_stride[i]), 0), 
+                    tf.greater_equal(TA[i-1].size(), tf.multiply(self._temporal_kernel_size[i], self._temporal_dilation_factor[i]))),
+                    update[i-1]),
+                    lambda: False,
+                    lambda: update[i-1]
+                )
+
+
                # if (TA[i-1].size()) % (self._temporal_stride[i]) == 0 and TA[i-1].size() >= (self._temporal_kernel_size[i] * self._temporal_dilation_factor[i]):
                #     TA[i] = TA[i].write(iters, self._convOp(TA[i-1], TA[i-1].size() - 1, self._temporal_kernel_size[i], self._temporal_dilation_factor[i]))
                # else:
@@ -68,10 +91,10 @@ class TemporalConvNet:
        #         else:
        #             break
 
-            return iters + 1, TA, input
+            return iters + 1, TA, input, update
        # 
             
-        final_iter, output, _ = tf.while_loop(loopCond, loopBody, [0, TA_list, TA_input])
+        final_iter, output, input, update = tf.while_loop(loopCond, loopBody, [0, TA_list, TA_input, [False] * (self._num_layers)])
         self.output = [TA.stack() for TA in output]
 
     def initNetwork(self, model_path = None): #loading model not implemented
