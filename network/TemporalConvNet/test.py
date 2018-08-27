@@ -8,12 +8,13 @@ from TemporalConvNet import TemporalConvNet
 #define convOp
 def convOp(TA, iters, kernel, dilation):
     #return TA.read(iters)
+    print(TA.read(0).shape)
     return tf.add_n([TA.read(iters - i * dilation) for i in range(kernel)])/kernel
 
     return tf.reduce_mean(tf.stack([TA.read(iters - i * dilation) for i in range(kernel)]))
 
 #build model
-net = TemporalConvNet([90, 160, 3], [1, 2], [3, 2], [5, 10], convOp)
+net = TemporalConvNet([90, 160, 3], [1, 2], [3, 2], [5, 10], convOp, None)
 net.buildNetwork()
 net.initNetwork()
 

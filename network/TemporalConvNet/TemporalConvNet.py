@@ -3,7 +3,7 @@ import numpy as np
 
 class TemporalConvNet:
     
-    def __init__(self, input_size, temporal_dilation_factor, temporal_kernel_size, temporal_stride, convOp):
+    def __init__(self, input_size, temporal_dilation_factor, temporal_kernel_size, temporal_stride, convOp, lossOp):
         
         if not (len(temporal_dilation_factor) == len(temporal_stride) == len(temporal_kernel_size)):
             raise ValueError("Length of dilation factors, kernel sizes, and strides must match")
@@ -13,6 +13,7 @@ class TemporalConvNet:
         self._temporal_kernel_size = temporal_kernel_size
         self._temporal_stride = temporal_stride
         self._convOp = convOp
+        self._lossOp = lossOp
         self._num_layers = len(temporal_stride)
         
         self.sess = None
@@ -31,6 +32,7 @@ class TemporalConvNet:
                     clear_after_read = False if self._temporal_kernel_size[0] * 
                     self._temporal_dilation_factor[0] > self._temporal_stride[0] else True).unstack(self.input)
 
+
         def loopCond(iters, *_):
             return iters < num_time_steps
 
@@ -48,10 +50,6 @@ class TemporalConvNet:
                 lambda: False
             ) 
 
-         #   if (iters + 1) % (self._temporal_stride[0]) == 0 and iters > (self._temporal_kernel_size[0] * self._temporal_dilation_factor[0]):
-         #       TA[0] = TA[0].write(iters, self._convOp(input, iters, self._temporal_kernel_size[0], self._temporal_dilation_factor[0]))
-         #   else:
-         #       return iters + 1, TA, input
 
             for i in range(1, self._num_layers):
                 TA[i] = tf.cond(tf.logical_and(tf.logical_and(tf.equal(tf.mod(TA[i-1].size(), self._temporal_stride[i]), 0), 
@@ -75,27 +73,11 @@ class TemporalConvNet:
                     lambda: update[i-1]
                 )
 
-
-               # if (TA[i-1].size()) % (self._temporal_stride[i]) == 0 and TA[i-1].size() >= (self._temporal_kernel_size[i] * self._temporal_dilation_factor[i]):
-               #     TA[i] = TA[i].write(iters, self._convOp(TA[i-1], TA[i-1].size() - 1, self._temporal_kernel_size[i], self._temporal_dilation_factor[i]))
-               # else:
-               #     return iters + 1, TA, input
-       #     base_mult = 1
-
-       #     for i, (dilation, kernel, stride)  in enumerate(zip(self._temporal_dilation_factor, self._temporal_kernel_size, self._temporal_stride)):
-       #         if 
-       #         if iters % (stride * base_mult) == 0 and iters > (kernel * dilation * base_mult):
-       #             TA[i + 1] = TA[i + 1].write(iters, self._convOp(TA[i], iters, kernel, dilation))
-       #             base_mult = base_mult * stride
-
-       #         else:
-       #             break
-
             return iters + 1, TA, input, update
-       # 
             
         final_iter, output, input, update = tf.while_loop(loopCond, loopBody, [0, TA_list, TA_input, [False] * (self._num_layers)])
         self.output = [TA.stack() for TA in output]
+        self.labels, self.loss, self.train = self._lossOp(self.output)
 
     def initNetwork(self, model_path = None): #loading model not implemented
         init = tf.initialize_all_variables()
@@ -104,8 +86,8 @@ class TemporalConvNet:
 
 
     def predict(self, input):
-        return self.sess.run([self.output], feed_dict={self.input: input})[0]        
+        return self.sess.run(self.output, feed_dict={self.input: input})        
 
     def train(self, input, label):
-        pass
-            
+        loss, train = self.sess.run([self.loss, self.train], feed_dict = {self.input: input, self.label: label}) 
+        return loss
