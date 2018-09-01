@@ -25,8 +25,11 @@ def ClassificationCELoss(learning_rate, classes):
     """
     def map_function(tensor):
         # print(tf.reshape(tensor, [-1]).shape)
-        return tf.reshape(tf.layers.dense(tf.reshape(tensor, [1, -1]), classes, name = "Final_FC_Layer", reuse = tf.AUTO_REUSE),
-                [-1])
+        return tf.reshape(tf.layers.dense(tf.reshape(tensor, [1, -1]),
+                                          classes,
+                                          name = "Final_FC_Layer",
+                                          reuse = tf.AUTO_REUSE),
+                          [-1])
 
 
     def _loss(output):

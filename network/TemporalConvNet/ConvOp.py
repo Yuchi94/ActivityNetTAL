@@ -29,5 +29,10 @@ def conv1DOp(TA, iters, kernel_size, kernel_num, dilation, layer):
         for j in range(kernel_num):
             kernel[j] = tf.get_variable("kernel_" + str(j), shape = [kernel_size] + [kernel_dims] + [1 for i in range(len(feature_dims))])
 
-    return tf.stack([tf.reduce_sum(tf.stack([TA.read(iters - i * dilation) for i in range(kernel_size)])
-            * tf.tile(kernel[j], [1, 1] + feature_dims), axis = [0, 1]) for j in range(kernel_num)])
+    return tf.stack(                #stacking by number of kernels
+        [tf.reduce_sum(             #summing over time (axis 0) and prev kernels (axis 1)
+            tf.nn.relu(             #activation function
+                tf.stack(           #constructing tensor from sliced reads over prev tensorarray
+                    [TA.read(iters - i * dilation) for i in range(kernel_size)]) #reading tensor indices
+            * tf.tile(kernel[j], [1, 1] + feature_dims)),   #tiling kernel to feature vector dims
+            axis = [0, 1]) for j in range(kernel_num)])

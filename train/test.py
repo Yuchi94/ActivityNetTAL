@@ -18,7 +18,7 @@ pretrained_variables = tf.get_collection(tf.GraphKeys.GLOBAL_VARIABLES)
 print ("Pretrained network initialized")
 #build temporal conv net
 #input_size, temporal_dilation_factor, temporal_kernel_size, temporal_stride, temporal_kernel_nums,  convOp, lossOp
-TCN = TemporalConvNet([1, 2048], [1, 1], [3, 3], [1, 1], [1, 1], conv1DOp, ClassificationCELoss(1e-3, 6))
+TCN = TemporalConvNet([1, 2048], [1, 1], [3, 3], [1, 1], [2, 2], conv1DOp, ClassificationCELoss(1e-3, 6))
 TCN.buildNetwork(pretrained_input, tf.reshape(net, [-1, 2048]))
 print ("TCN built")
 TCN.initNetwork()

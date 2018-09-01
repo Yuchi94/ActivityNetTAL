@@ -26,7 +26,7 @@ class TemporalConvNet:
         self.pretrained_input = pretrained_input
         self.input = pretrained_output
 
-        TA_list = [tf.TensorArray(dtype = "float32", size = 0, dynamic_size = True, clear_after_read = False)] * self._num_layers
+        TA_list = [tf.TensorArray(dtype = "float32", size = 0, dynamic_size = True, clear_after_read = False) for i in range(self._num_layers)]
         TA_input = tf.TensorArray(dtype = "float32", size = 0, dynamic_size = True, clear_after_read = False).unstack(self.input)
         TA_list.insert(0, TA_input)
 
@@ -57,7 +57,6 @@ class TemporalConvNet:
                                                                                         TA_list[self._curr_layer],
                                                                                         TA_list[self._curr_layer + 1]],
                                                                                         parallel_iterations=1)
-            pass
 
         self.output = [TA.stack() for TA in TA_list[1:]]
         self.labels, self.loss, self.train = self._lossOp(self.output)
