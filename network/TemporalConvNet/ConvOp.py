@@ -17,8 +17,12 @@ def conv1DOp(TA, iters, kernel_size, kernel_num, dilation, layer):
     shape = TA.read(0).get_shape().as_list()
     print(shape)
 
-    feature_dims = shape[1:]
-    kernel_dims = shape[0]
+    if layer == 0:
+        feature_dims = shape
+        kernel_dims = 1
+    else:
+        feature_dims = shape[1:]
+        kernel_dims = shape[0]
 
     kernel = [None] * kernel_num
     with tf.variable_scope("TCN_layer_" + str(layer), reuse = tf.AUTO_REUSE):

@@ -26,16 +26,8 @@ class TemporalConvNet:
         self.pretrained_input = pretrained_input
         self.input = pretrained_output
 
-        num_time_steps = tf.shape(self.input)[0]
         TA_list = [tf.TensorArray(dtype = "float32", size = 0, dynamic_size = True, clear_after_read = False)] * self._num_layers
-                   # clear_after_read = False if self._temporal_kernel_size[i] *
-                   # self._temporal_dilation_factor[i] > self._temporal_stride[i] else True)
-                   # for i in range(1, self._num_layers)]
-        # TA_list.append(tf.TensorArray(dtype = "float32", size = 0, dynamic_size = True))
-
         TA_input = tf.TensorArray(dtype = "float32", size = 0, dynamic_size = True, clear_after_read = False).unstack(self.input)
-                    # clear_after_read = False if self._temporal_kernel_size[0] *
-                    # self._temporal_dilation_factor[0] > self._temporal_stride[0] else True).unstack(self.input)
         TA_list.insert(0, TA_input)
 
         def loopCond(iters, prev, curr):
@@ -59,11 +51,13 @@ class TemporalConvNet:
         # final_iter, output, input, update = tf.while_loop(loopCond, loopBody, [0, TA_list, TA_input, [False] * (self._num_layers)], parallel_iterations=1)
 
         for self._curr_layer in range(self._num_layers):
-            final_iter, TA_list[self._curr_layer], TA_list[self._curr_layer + 1] = tf.while_loop(loopCond, loopBody,
-                                                                                         [0,
-                                                                                          TA_list[self._curr_layer],
-                                                                                          TA_list[self._curr_layer + 1]],
-                                                                                                 parallel_iterations=1)
+            final_iter, TA_list[self._curr_layer], TA_list[self._curr_layer + 1] = tf.while_loop(loopCond,
+                                                                                        loopBody,
+                                                                                        [0,
+                                                                                        TA_list[self._curr_layer],
+                                                                                        TA_list[self._curr_layer + 1]],
+                                                                                        parallel_iterations=1)
+            pass
 
         self.output = [TA.stack() for TA in TA_list[1:]]
         self.labels, self.loss, self.train = self._lossOp(self.output)
