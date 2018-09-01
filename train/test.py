@@ -15,16 +15,22 @@ with slim.arg_scope(resnet_v2.resnet_arg_scope()):
 
 pretrained_variables = tf.get_collection(tf.GraphKeys.GLOBAL_VARIABLES)
 
+print ("Pretrained network initialized")
 #build temporal conv net
-TCN = TemporalConvNet([1, 2048], [1,1], [3,3], [1,1], [2, 2], conv1DOp, ClassificationCELoss(1e-3, 6))
+#input_size, temporal_dilation_factor, temporal_kernel_size, temporal_stride, temporal_kernel_nums,  convOp, lossOp
+TCN = TemporalConvNet([1, 2048], [1, 1], [3, 3], [1, 1], [1, 1], conv1DOp, ClassificationCELoss(1e-3, 6))
 TCN.buildNetwork(pretrained_input, tf.reshape(net, [-1, 2048]))
+print ("TCN built")
 TCN.initNetwork()
+print ("TCN initialized")
 
 #load pretrained resnet
 saver = tf.train.Saver(pretrained_variables)
 with tf.Session() as sess:
     saver.restore(sess, 'pretrained/resnet_v2_152/resnet_v2_152.ckpt')
-160
+print ("Pretrained network initialized")
+
+
 #Load the files into memory
 boxing = np.load("preprocessing/boxing.npz")
 handclapping = np.load("preprocessing/handclapping.npz")
@@ -65,7 +71,8 @@ for i in range(1000):
     label = random.randint(0, 5)
     video = getVideo(label)
     onehot = getOneHot(label)
-    loss = TCN.trainWithFeed(video, onehot)
+    print(i)
+    loss = TCN.trainWithFeed(video/255, onehot)
     print(loss)
 
 

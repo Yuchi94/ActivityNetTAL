@@ -16,6 +16,7 @@ class TemporalConvNet:
         self._convOp = convOp
         self._lossOp = lossOp
         self._num_layers = len(temporal_stride)
+        self._curr_layer = None
 
         self.sess = None
 
@@ -26,61 +27,45 @@ class TemporalConvNet:
         self.input = pretrained_output
 
         num_time_steps = tf.shape(self.input)[0]
-        TA_list = [tf.TensorArray(dtype = "float32", size = 0, dynamic_size = True, clear_after_read = False)]
+        TA_list = [tf.TensorArray(dtype = "float32", size = 0, dynamic_size = True, clear_after_read = False)] * self._num_layers
                    # clear_after_read = False if self._temporal_kernel_size[i] *
                    # self._temporal_dilation_factor[i] > self._temporal_stride[i] else True)
                    # for i in range(1, self._num_layers)]
-        TA_list.append(tf.TensorArray(dtype = "float32", size = 0, dynamic_size = True))
+        # TA_list.append(tf.TensorArray(dtype = "float32", size = 0, dynamic_size = True))
 
         TA_input = tf.TensorArray(dtype = "float32", size = 0, dynamic_size = True, clear_after_read = False).unstack(self.input)
                     # clear_after_read = False if self._temporal_kernel_size[0] *
                     # self._temporal_dilation_factor[0] > self._temporal_stride[0] else True).unstack(self.input)
+        TA_list.insert(0, TA_input)
 
+        def loopCond(iters, prev, curr):
 
-        def loopCond(iters, *_):
-            return iters < num_time_steps
+            return iters < prev.size()
 
-        def loopBody(iters, TA, input, update):
+        def loopBody(iters, prev, curr):
 
-            TA[0] = tf.cond(tf.logical_and(tf.equal(tf.mod(tf.add(iters, 1), self._temporal_stride[0]), 0),
-                    tf.greater(iters, tf.multiply(self._temporal_kernel_size[0], self._temporal_dilation_factor[0]))),
-                lambda: TA[0].write(TA[0].size(), self._convOp(input, iters, self._temporal_kernel_size[0], self._temporal_kernel_nums[0], self._temporal_dilation_factor[0], 0)),
-                lambda: TA[0]
+            curr = tf.cond(tf.logical_and(tf.equal(tf.mod(tf.add(iters, 1), self._temporal_stride[self._curr_layer]), 0),
+                    tf.greater(iters, tf.multiply(self._temporal_kernel_size[self._curr_layer],
+                                                  self._temporal_dilation_factor[self._curr_layer]))),
+                lambda: curr.write(curr.size(), self._convOp(prev, iters, self._temporal_kernel_size[self._curr_layer],
+                                                             self._temporal_kernel_nums[self._curr_layer],
+                                                             self._temporal_dilation_factor[self._curr_layer],
+                                                             self._curr_layer)),
+                lambda: curr
             )
 
-            update[0] = tf.cond(tf.logical_and(tf.equal(tf.mod(tf.add(iters, 1), self._temporal_stride[0]), 0),
-                    tf.greater(iters, tf.multiply(self._temporal_kernel_size[0], self._temporal_dilation_factor[0]))),
-                lambda: True,
-                lambda: False
-            )
+            return iters + 1, prev, curr
 
+        # final_iter, output, input, update = tf.while_loop(loopCond, loopBody, [0, TA_list, TA_input, [False] * (self._num_layers)], parallel_iterations=1)
 
-            for i in range(1, self._num_layers):
-                TA[i] = tf.cond(tf.logical_and(tf.logical_and(tf.equal(tf.mod(TA[i-1].size(), self._temporal_stride[i]), 0),
-                    tf.greater_equal(TA[i-1].size(), tf.multiply(self._temporal_kernel_size[i], self._temporal_dilation_factor[i]))),
-                    update[i-1]),
-                    lambda: TA[i].write(TA[i].size(), self._convOp(TA[i-1], TA[i-1].size() - 1, self._temporal_kernel_size[i], self._temporal_kernel_nums[i], self._temporal_dilation_factor[i], i)),
-                    lambda: TA[i]
-                )
+        for self._curr_layer in range(self._num_layers):
+            final_iter, TA_list[self._curr_layer], TA_list[self._curr_layer + 1] = tf.while_loop(loopCond, loopBody,
+                                                                                         [0,
+                                                                                          TA_list[self._curr_layer],
+                                                                                          TA_list[self._curr_layer + 1]],
+                                                                                                 parallel_iterations=1)
 
-                update[i] = tf.cond(tf.logical_and(tf.logical_and(tf.equal(tf.mod(TA[i-1].size(), self._temporal_stride[i]), 0),
-                    tf.greater_equal(TA[i-1].size(), tf.multiply(self._temporal_kernel_size[i], self._temporal_dilation_factor[i]))),
-                    update[i-1]),
-                    lambda: True,
-                    lambda: False
-                )
-
-                update[i - 1] = tf.cond(tf.logical_and(tf.logical_and(tf.equal(tf.mod(TA[i-1].size(), self._temporal_stride[i]), 0),
-                    tf.greater_equal(TA[i-1].size(), tf.multiply(self._temporal_kernel_size[i], self._temporal_dilation_factor[i]))),
-                    update[i-1]),
-                    lambda: False,
-                    lambda: update[i-1]
-                )
-
-            return iters + 1, TA, input, update
-
-        final_iter, output, input, update = tf.while_loop(loopCond, loopBody, [0, TA_list, TA_input, [False] * (self._num_layers)])
-        self.output = [TA.stack() for TA in output]
+        self.output = [TA.stack() for TA in TA_list[1:]]
         self.labels, self.loss, self.train = self._lossOp(self.output)
 
     def initNetwork(self, model_path = None): #loading model not implemented
@@ -93,5 +78,7 @@ class TemporalConvNet:
         return self.sess.run(self.output, feed_dict={self.input: input})
 
     def trainWithFeed(self, input, label):
-        loss, train = self.sess.run([self.loss, self.train], feed_dict = {self.pretrained_input: input, self.labels: label})
+        loss, train, pretrained_output = self.sess.run([self.loss, self.train, self.input], feed_dict = {self.pretrained_input: input, self.labels: label})
+        print(pretrained_output.shape)
+        print(pretrained_output)
         return loss

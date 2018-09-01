@@ -24,14 +24,15 @@ def ClassificationCELoss(learning_rate, classes):
     of the video
     """
     def map_function(tensor):
-        print(tf.reshape(tensor, [-1]).shape)
+        # print(tf.reshape(tensor, [-1]).shape)
         return tf.reshape(tf.layers.dense(tf.reshape(tensor, [1, -1]), classes, name = "Final_FC_Layer", reuse = tf.AUTO_REUSE),
                 [-1])
 
 
     def _loss(output):
+        # print(output)
         logits = tf.map_fn(map_function, output[-1])
-        print(logits.shape)
+        # print(logits.shape)
         labels = tf.placeholder(tf.float32, shape = [1, classes])
         loss = tf.nn.softmax_cross_entropy_with_logits_v2(labels = tf.ones_like(logits) * labels, logits = logits)
         train = tf.train.AdamOptimizer(learning_rate).minimize(loss)
