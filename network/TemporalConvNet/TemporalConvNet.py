@@ -20,6 +20,9 @@ class TemporalConvNet:
 
         self.sess = None
 
+        ###DEBUG###
+        self.probe = None
+
     def buildNetwork(self, pretrained_input, pretrained_output):
 
         # self.input = tf.placeholder(shape = [None] + self._input_size, dtype = "float32") #change dtype for memory
@@ -59,7 +62,7 @@ class TemporalConvNet:
                                                                                         parallel_iterations=1)
 
         self.output = [TA.stack() for TA in TA_list[1:]]
-        self.labels, self.loss, self.train = self._lossOp(self.output)
+        self.labels, self.loss, self.train, self.probe = self._lossOp(self.output)
 
     def initNetwork(self, model_path = None): #loading model not implemented
         init = tf.initialize_all_variables()
@@ -71,7 +74,13 @@ class TemporalConvNet:
         return self.sess.run(self.output, feed_dict={self.input: input})
 
     def trainWithFeed(self, input, label):
-        loss, train, pretrained_output = self.sess.run([self.loss, self.train, self.input], feed_dict = {self.pretrained_input: input, self.labels: label})
-        print(pretrained_output.shape)
-        print(pretrained_output)
+        # print(input)
+        if self.pretrained_input:
+            loss, train, pretrained_output, probe = self.sess.run([self.loss, self.train, self.input, self.probe], feed_dict = {self.pretrained_input: input, self.labels: label})
+        else:
+            loss, train, pretrained_output, probe = self.sess.run([self.loss, self.train, self.input, self.probe], feed_dict = {self.input: input, self.labels: label})
+
+        print(probe)
+        # print(pretrained_output.shape)
+        # print(pretrained_output)
         return loss
