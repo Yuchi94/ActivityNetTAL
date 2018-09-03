@@ -63,7 +63,7 @@ if USE_LIVE_CNN:
     print ("Pretrained network initialized")
     #build temporal conv net
     #input_size, temporal_dilation_factor, temporal_kernel_size, temporal_stride, temporal_kernel_nums,  convOp, lossOp
-    TCN = TemporalConvNet([1, 2048], [1], [5], [1], [1], conv1DOp, ClassificationCELoss(1e-3, 6))
+    TCN = TemporalConvNet([1, 2048], [1,1], [5, 3], [1, 1], [1, 1], conv1DOp, ClassificationCELoss(1e-3, 6))
     TCN.buildNetwork(pretrained_input, tf.reshape(net, [-1, 2048]))
     print ("TCN built")
     TCN.initNetwork()

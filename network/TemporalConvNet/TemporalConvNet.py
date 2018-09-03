@@ -61,8 +61,7 @@ class TemporalConvNet:
                                                                                         loopBody,
                                                                                         [0,
                                                                                         TA_list[self._curr_layer],
-                                                                                        TA_list[self._curr_layer + 1]],
-                                                                                        parallel_iterations=1)
+                                                                                        TA_list[self._curr_layer + 1]])
 
         self.output = [TA.stack() for TA in TA_list[1:]]
         self.labels, self.loss, self.train, self.probe = self._lossOp(self.output)
