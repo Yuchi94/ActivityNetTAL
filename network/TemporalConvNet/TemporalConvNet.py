@@ -34,20 +34,23 @@ class TemporalConvNet:
         TA_list.insert(0, TA_input)
 
         def loopCond(iters, prev, curr):
+            #equation to determine the start index of the current layer is:
+            #(kernel_size - 1) * dilation_factor + iters * stride
 
-            return iters < prev.size()
+            return (self._temporal_kernel_size[self._curr_layer] - 1) * \
+                   self._temporal_dilation_factor[self._curr_layer] + \
+                    self._temporal_stride[self._curr_layer] * iters < prev.size()
 
         def loopBody(iters, prev, curr):
 
-            curr = tf.cond(tf.logical_and(tf.equal(tf.mod(tf.add(iters, 1), self._temporal_stride[self._curr_layer]), 0),
-                    tf.greater(iters, tf.multiply(self._temporal_kernel_size[self._curr_layer],
-                                                  self._temporal_dilation_factor[self._curr_layer]))),
-                lambda: curr.write(curr.size(), self._convOp(prev, iters, self._temporal_kernel_size[self._curr_layer],
+            index = (self._temporal_kernel_size[self._curr_layer] - 1) * \
+                   self._temporal_dilation_factor[self._curr_layer] + \
+                    self._temporal_stride[self._curr_layer] * iters
+
+            curr = curr.write(iters, self._convOp(prev, index, self._temporal_kernel_size[self._curr_layer],
                                                              self._temporal_kernel_nums[self._curr_layer],
                                                              self._temporal_dilation_factor[self._curr_layer],
-                                                             self._curr_layer)),
-                lambda: curr
-            )
+                                                             self._curr_layer))
 
             return iters + 1, prev, curr
 
