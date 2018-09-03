@@ -25,7 +25,6 @@ class TemporalConvNet:
 
     def buildNetwork(self, pretrained_input, pretrained_output):
 
-        # self.input = tf.placeholder(shape = [None] + self._input_size, dtype = "float32") #change dtype for memory
         self.pretrained_input = pretrained_input
         self.input = pretrained_output
 
@@ -54,8 +53,6 @@ class TemporalConvNet:
 
             return iters + 1, prev, curr
 
-        # final_iter, output, input, update = tf.while_loop(loopCond, loopBody, [0, TA_list, TA_input, [False] * (self._num_layers)], parallel_iterations=1)
-
         for self._curr_layer in range(self._num_layers):
             final_iter, TA_list[self._curr_layer], TA_list[self._curr_layer + 1] = tf.while_loop(loopCond,
                                                                                         loopBody,
@@ -78,11 +75,21 @@ class TemporalConvNet:
     def trainWithFeed(self, input, label):
         # print(input)
         if self.pretrained_input:
-            loss, train, pretrained_output, probe = self.sess.run([self.loss, self.train, self.input, self.probe], feed_dict = {self.pretrained_input: input, self.labels: label})
+            loss, train, pretrained_output, probe = self.sess.run([self.loss,
+                                                                   self.train,
+                                                                   self.input,
+                                                                   self.probe],
+                                                                  feed_dict = {self.pretrained_input: input,
+                                                                               self.labels: label})
         else:
-            loss, train, pretrained_output, probe = self.sess.run([self.loss, self.train, self.input, self.probe], feed_dict = {self.input: input, self.labels: label})
+            loss, train, pretrained_output, probe = self.sess.run([self.loss,
+                                                                   self.train,
+                                                                   self.input,
+                                                                   self.probe],
+                                                                  feed_dict = {self.input: input,
+                                                                               self.labels: label})
 
-        print(probe)
+        # print(probe)
         # print(pretrained_output.shape)
         # print(pretrained_output)
         return loss

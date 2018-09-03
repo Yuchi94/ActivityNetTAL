@@ -7,6 +7,9 @@ Output is a list of stacked tensors, each corresponding to a layer in the TCN. T
 """
 
 def L2Loss(learning_rate):
+    """
+    Standard L2 regression loss
+    """
 
     def _loss(output):
         labels = [tf.placeholder(tf.float32, shape = output[i].shape) for i in range(len(output))]
@@ -24,7 +27,6 @@ def ClassificationCELoss(learning_rate, classes):
     of the video
     """
     def map_function(tensor):
-        # print(tf.reshape(tensor, [-1]).shape)
         return tf.reshape(tf.layers.dense(tf.reshape(tensor, [1, -1]),
                                           classes,
                                           name = "Final_FC_Layer",
@@ -33,9 +35,7 @@ def ClassificationCELoss(learning_rate, classes):
 
 
     def _loss(output):
-        # print(output)
         logits = tf.map_fn(map_function, output[-1])
-        # print(logits.shape)
         labels = tf.placeholder(tf.float32, shape = [1, classes])
         probe = tf.nn.softmax(logits)
         loss = tf.reduce_mean(tf.nn.softmax_cross_entropy_with_logits_v2(labels = tf.ones_like(logits) * labels, logits = logits))
