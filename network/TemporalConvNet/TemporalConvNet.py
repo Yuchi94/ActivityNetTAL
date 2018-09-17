@@ -20,9 +20,6 @@ class TemporalConvNet:
 
         self.sess = None
 
-        ###DEBUG###
-        self.probe = None
-
     def buildNetwork(self, pretrained_input, pretrained_output):
 
         self.pretrained_input = pretrained_input
@@ -61,35 +58,42 @@ class TemporalConvNet:
                                                                                         TA_list[self._curr_layer + 1]])
 
         self.output = [TA.stack() for TA in TA_list[1:]]
-        self.labels, self.loss, self.train, self.probe = self._lossOp(self.output)
+        self.labels, self.loss, self.train, self.prediction = self._lossOp(self.output)
 
-    def initNetwork(self, model_path = None): #loading model not implemented
+    def initNetwork(self, model_path = None): 
         init = tf.initialize_all_variables()
         self.sess = tf.InteractiveSession()
-        self.sess.run(init)
+        self.saver = tf.train.Saver()
+        if model_path:
+           self.saver.restore(self.sess, model_path)
+        else:
+            self.sess.run(init)
 
+    def saveNetwork(self, save_path):
+        self.saver.save(self.sess, save_path)
 
     def predictNetwork(self, input):
-        return self.sess.run(self.output, feed_dict={self.input: input})
+        return self.sess.run(self.prediction, feed_dict={self.input: input})
 
     def trainWithFeed(self, input, label):
         # print(input)
         if self.pretrained_input:
-            loss, train, pretrained_output, probe = self.sess.run([self.loss,
+            loss, train, pretrained_output, prediction = self.sess.run([self.loss,
                                                                    self.train,
                                                                    self.input,
-                                                                   self.probe],
+                                                                   self.prediction],
                                                                   feed_dict = {self.pretrained_input: input,
                                                                                self.labels: label})
         else:
-            loss, train, pretrained_output, probe = self.sess.run([self.loss,
+            loss, train, pretrained_output, prediction = self.sess.run([self.loss,
                                                                    self.train,
                                                                    self.input,
-                                                                   self.probe],
+                                                                   self.prediction],
                                                                   feed_dict = {self.input: input,
                                                                                self.labels: label})
 
-        # print(probe)
+        print(np.mean(prediction, axis = 0))
+        print(label)
         # print(pretrained_output.shape)
         # print(pretrained_output)
         return loss

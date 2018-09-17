@@ -37,10 +37,10 @@ def ClassificationCELoss(learning_rate, classes):
     def _loss(output):
         logits = tf.map_fn(map_function, output[-1])
         labels = tf.placeholder(tf.float32, shape = [1, classes])
-        probe = tf.nn.softmax(logits)
+        prediction = tf.nn.softmax(logits)
         loss = tf.reduce_mean(tf.nn.softmax_cross_entropy_with_logits_v2(labels = tf.ones_like(logits) * labels, logits = logits))
         train = tf.train.AdamOptimizer(learning_rate).minimize(loss)
 
-        return labels, loss, train, probe
+        return labels, loss, train, prediction 
 
     return _loss
